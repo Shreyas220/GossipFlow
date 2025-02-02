@@ -12,6 +12,7 @@ pub struct NodeInfo{
 pub struct ValueVersion{
     pub value: String,
     pub uniquerid: Uuid,
+    pub version : u64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
