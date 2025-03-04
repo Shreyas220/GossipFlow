@@ -1,13 +1,13 @@
-use crate::model::{NodeInfo, ValueVersion, Message};
+use crate::models::{NodeInfo, ValueVersion, Message};
 use std::collections::{HashMap, HashSet};
-
+use uuid::Uuid;
 
 pub struct AppState {
-    pub store: Hashmap<String,ValueVersion>,
+    pub store: HashMap<String,ValueVersion>,
     pub self_node: NodeInfo,
     pub node_members: Vec<NodeInfo>,
     pub seen_updates: HashSet<Uuid>,
-    pub wal_path: String,                    
+    pub wal_path: String,
 
 }
 
