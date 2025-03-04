@@ -1,6 +1,7 @@
 use crate::models::{NodeInfo, ValueVersion, Message};
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
+use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
 pub struct AppState {
@@ -13,26 +14,26 @@ pub struct AppState {
 }
 
 // handling update to KV store data
-pub fn update_store(state: Arc<Mutex<AppState>>,incoming_store: HashMap<String, ValueVersion> ) {
+pub fn update_store(state: &mut AppState,incoming_store: HashMap<String, ValueVersion> ) {
     for (k,v) in incoming_store {
-        let mut st = state.lock().unwrap();
 
-        if st.seen_updates.contains(&v.uniquerid) {
+        //checking if the update has been seen before
+        if state.seen_updates.contains(&v.uniquerid) {
             continue;
         }
 
-        st.seen_updates.insert(v.uniquerid);
+        state.seen_updates.insert(v.uniquerid);
 
         // st.store.insert(k,v);
-        match st.store.get_mut(&k) {
+        match state.store.get_mut(&k) {
             Some(existing_value) => {
                 // if the version is greater than the existing value, update the value else its an old update
                 if existing_value.version < v.version {
-                    st.store.insert(k,v);
+                    state.store.insert(k,v);
                 }
             }
             None => {
-                st.store.insert(k,v);
+                state.store.insert(k,v);
             }
         }
     }
@@ -59,3 +60,12 @@ pub fn update_members(state: &mut AppState, new_members: Vec<NodeInfo>) {
     }
 }
 
+
+pub fn update_sender_heartbeat(st: &mut AppState, addr: &SocketAddr) {
+    for node in st.node_members.iter_mut() {
+        if node.address == addr.to_string() {
+            node.heartbeat += 1;
+            break;
+        }
+    }
+}

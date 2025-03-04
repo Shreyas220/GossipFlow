@@ -9,7 +9,7 @@ use tokio::time::interval;
 
 use crate::models::{Message, NodeInfo, ValueVersion};
 use crate::state::{
-    AppState, // merge_membership, merge_store, update_sender_heartbeat, prune_old_data,
+    AppState, update_store, update_members, update_sender_heartbeat
 };
 // use crate::util::{send_message, current_unix_timestamp};
 // use crate::state::{replay_wal, write_to_wal};
@@ -53,17 +53,30 @@ pub async fn handle_message(
     while let Some((msg, addr)) = rx_message.recv().await {
         match msg {
             Message::GossipState {membership,store} => {
-                let mut st = state.lock().unwrap();
+               
+                {
+                    let mut st = state.lock().unwrap();
+                    // merge the member if new 
+                    update_members(&mut st, membership);
+                }
 
-                // merge the member if new 
-
-                // add to kv store
+                {
+                    let mut st = state.lock().unwrap();
+                    // add to kv store
+                    update_store(&mut st, store);
+                }
 
                 //update_sender_heartbeat
+                {
+                    let mut st = state.lock().unwrap();
+                    update_sender_heartbeat(&mut st, &addr);
+                }
             }
             
             Message::GossipRequest => {
-                // wants our state
+                // TODO: Implement SWIM protocol
+                let mut st = state.lock().unwrap();
+                update_sender_heartbeat(&mut st, &addr);
 
             }
         }
@@ -71,3 +84,4 @@ pub async fn handle_message(
 
     }
 }
+
