@@ -1,12 +1,12 @@
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-
 use rand::seq::SliceRandom;
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::interval;
 
+use crate::utils::{send_message, current_unix_timestamp};
 use crate::models::{Message, NodeInfo, ValueVersion};
 use crate::state::{
     AppState, update_store, update_members, update_sender_heartbeat
@@ -16,13 +16,14 @@ use crate::state::{
 
 
 // receieve gossips
-pub fn receive_gossip(
+pub async fn receive_gossip(
     socket: Arc<UdpSocket>,
     tx_message: Sender<(Message, SocketAddr)>,
 ) {
     let mut buf = vec![0; 1024];
     loop {
         match socket.try_recv_from(&mut buf) {
+
             Ok((size, addr)) => {
                 let data = &buf[..size];
                 if let Ok(msg) = serde_json::from_slice::<Message>(&data) {
@@ -39,8 +40,6 @@ pub fn receive_gossip(
         }
     }
 }
-
-// send gossips
 
 // handle add update delete message
 
@@ -85,3 +84,35 @@ pub async fn handle_message(
     }
 }
 
+// send gossips
+
+pub async fn send_gossip(socket: Arc<UdpSocket>, state: Arc<Mutex<AppState>>) {
+    let mut ticker = interval(Duration::from_secs(5));
+
+    loop {
+        ticker.tick().await;
+
+        let st = state.lock().unwrap();
+
+        //picking up random node to gossip with
+        let random_node = st.node_members.choose(&mut rand::thread_rng()).unwrap();
+
+        //sending gossip state to the random node
+        let message = Message::GossipState {
+            membership: {
+                let mut all: Vec<NodeInfo> = vec![st.self_node.clone()];
+                all.extend(st.node_members.clone());
+                all
+            },
+            store: st.store.clone(),
+        };
+    
+        //TODO: implement ACK
+        let _ = send_message(&socket, &message, &random_node.address).await;
+
+        // there is really no use of this request, will use SWIM protocol here 
+        let req = Message::GossipRequest;
+        let _ = send_message(&socket, &req, &random_node.address).await;
+
+    }
+}

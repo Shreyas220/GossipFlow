@@ -1,9 +1,11 @@
 mod models;
 mod state;
 mod worker;
+mod utils;
+mod methods;
 use crate::models::{NodeInfo, Message};
 use crate::state::AppState;
-use crate::worker::receive_gossip;
+use crate::worker::{receive_gossip, handle_message};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
@@ -14,6 +16,7 @@ use uuid::Uuid;
 #[tokio::main]
 async fn main() -> std::io::Result<()>  {
     println!("Hello, world!");
+
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
         eprintln!("Usage: {} <bind_address> [seed_address...]", args[0]);
@@ -24,9 +27,11 @@ async fn main() -> std::io::Result<()>  {
     // let seed_nodes =Box::new(args[2..].to_vec());
     let bind_addr = args[1].clone();
     let seed_nodes = &args[2..];
+
     println!("Node listening on {}", bind_addr);
 
-    let socket = Arc::new(UdpSocket::bind(&bind_addr).await.expect("Failed to bind UDP socket"));    println!("Node listening on {}", bind_addr);
+    let socket = Arc::new(UdpSocket::bind(&bind_addr).await.expect("Failed to bind UDP socket"));    
+    println!("Node listening on {}", bind_addr);
     //me here represent this node 
     let me = NodeInfo{
         id: Uuid::new_v4(),
@@ -53,6 +58,14 @@ async fn main() -> std::io::Result<()>  {
             receive_gossip(socket_clone, tx_message_clone);   
         });
     }
+
+    {
+        let state_clone = Arc::clone(&state);
+        tokio::spawn(async move {
+            handle_message(rx_message, state_clone).await;
+        });
+    }
+    
 
 
     Ok(())
