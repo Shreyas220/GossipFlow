@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 #[derive(Debug,Clone,Serialize, Deserialize)]
 pub struct NodeInfo{
+    pub id: Uuid,
     pub address: String,
     pub heartbeat: u64,
 }

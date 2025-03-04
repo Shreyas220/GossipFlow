@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use std::net::SocketAddr;
 use tokio::net::UdpSocket;
-
+use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()>  {
@@ -24,10 +24,12 @@ async fn main() -> std::io::Result<()>  {
     // let seed_nodes =Box::new(args[2..].to_vec());
     let bind_addr = args[1].clone();
     let seed_nodes = &args[2..];
-    
+    println!("Node listening on {}", bind_addr);
+
     let socket = Arc::new(UdpSocket::bind(&bind_addr).await.expect("Failed to bind UDP socket"));    println!("Node listening on {}", bind_addr);
     //me here represent this node 
     let me = NodeInfo{
+        id: Uuid::new_v4(),
         address: bind_addr,
         heartbeat: 0,
     };
@@ -40,7 +42,7 @@ async fn main() -> std::io::Result<()>  {
         seen_updates: HashSet::new(),
         wal_path: "wal.json".to_string(),
     }));
-    
+
     // handle incoming data from user and from more nodes 
     let (tx_message, rx_message) = mpsc::channel::<(Message, SocketAddr)>(100);    
 
